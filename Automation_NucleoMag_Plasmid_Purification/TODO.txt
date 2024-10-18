@@ -1,0 +1,7 @@
+Consider multiple sample procedure:
+Are volumina in 1.5mL eppi enough? For how many samples?
+Can the first steps before time critical step be made with multitransfer and 1mL pipette? If not how do we make a priority
+queue?
+How do we make an interface for user to specify the amount of samples?
+
+Make an overview sheet to show how the protocol has to be used.
