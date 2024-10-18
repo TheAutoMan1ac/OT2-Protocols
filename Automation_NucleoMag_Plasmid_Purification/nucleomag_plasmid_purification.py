@@ -8,7 +8,7 @@ metadata = {
     'author': 'Markus Eder',
     'description': 'Protocol for purifying plasmids from bacterial cultures using magnetic beads on a 96-well plate'
 }
-requirements = {"robotType": "OT-2", "apiLevel": "2.15"}
+requirements = {"robotType": "OT-2", "apiLevel": "2.19"}
 
 def run(protocol: protocol_api.ProtocolContext):
     # modules
@@ -48,6 +48,10 @@ def run(protocol: protocol_api.ProtocolContext):
     magplate_well_2 = mag_plate['A2']
     well_purified_plasmid = eppendorf_1p5['C1']
 
+    DEBUG = False
+
+    ENGAGE_HEIGHT_DEFAULT = 3
+
     # used for all mixing steps
     MIX_TIMES_DEFAULT = 5
     MIX_TIMES_THOROUGH = 10
@@ -62,6 +66,19 @@ def run(protocol: protocol_api.ProtocolContext):
     DELAY_RESUSPEND_WASH = 5
     DELAY_RESUSPEND_DRY_BEADS = 5
 
+    DELAY_DRY_BEADS = 15
+
+    if DEBUG:
+        DELAY_LYSIS = 0
+        DELAY_CLEARING_BEADS_INCUBATE = 0
+        DELAY_CLEARING_BEADS_ENGAGE = 0
+        DELAY_WASH_ENGAGE = 0
+        
+        DELAY_RESUSPEND_M_BEADS = 0
+        DELAY_RESUSPEND_WASH = 0
+        DELAY_RESUSPEND_DRY_BEADS = 0
+
+        DELAY_DRY_BEADS = 0
 
     # Step 1: Add 90uL of reagent A1 and mix
     p300_single.transfer(90, reagent_A1, magplate_well_1, mix_after=(MIX_TIMES_THOROUGH, 50))
@@ -79,7 +96,7 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.delay(minutes=DELAY_CLEARING_BEADS_INCUBATE)
 
     # Step 5: Magnetic separation
-    mag_module.engage()
+    mag_module.engage(height_from_base=ENGAGE_HEIGHT_DEFAULT)
     protocol.delay(minutes=DELAY_CLEARING_BEADS_ENGAGE)
     # Step 6: Transfer supernatant to new well
     p1000_single.transfer(365, magplate_well_1, magplate_well_2)
@@ -91,7 +108,7 @@ def run(protocol: protocol_api.ProtocolContext):
     protocol.delay(minutes=DELAY_RESUSPEND_M_BEADS)
 
     # Step 8: Magnetic separation and remove supernatant
-    mag_module.engage()
+    mag_module.engage(height_from_base=ENGAGE_HEIGHT_DEFAULT)
     protocol.delay(minutes=DELAY_WASH_ENGAGE)
     p1000_single.pick_up_tip()
     p1000_single.aspirate(775, magplate_well_2)  # waste
@@ -107,7 +124,7 @@ def run(protocol: protocol_api.ProtocolContext):
             p1000_single.transfer(900, reagent_AQ, magplate_well_2, mix_after=(MIX_TIMES_THOROUGH, 500))
             
         protocol.delay(minutes=DELAY_RESUSPEND_WASH)
-        mag_module.engage()
+        mag_module.engage(height_from_base=ENGAGE_HEIGHT_DEFAULT)
         protocol.delay(minutes=DELAY_WASH_ENGAGE)
         p1000_single.pick_up_tip()
         p1000_single.aspirate(900, magplate_well_2)  # waste
@@ -116,13 +133,13 @@ def run(protocol: protocol_api.ProtocolContext):
 
 
     # Step 16: Let beads dry for 15min
-    protocol.delay(minutes=15)
+    protocol.delay(minutes=DELAY_DRY_BEADS)
     
     # Step 17: Add 100uL of reagent AE, mix, and resuspend
     p300_single.transfer(100, reagent_AE, magplate_well_2, mix_after=(MIX_TIMES_THOROUGH, 50))
 
     # Step 18: Magnetic separation and transfer supernatant to eppendorf
-    mag_module.engage()
+    mag_module.engage(height_from_base=ENGAGE_HEIGHT_DEFAULT)
     protocol.delay(minutes=DELAY_RESUSPEND_DRY_BEADS)
     p300_single.transfer(100, magplate_well_2, well_purified_plasmid)  # final sample
     mag_module.disengage()
