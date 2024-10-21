@@ -62,42 +62,47 @@ def add_parameters(parameters: protocol_api.Parameters):
     parameters.add_int(
         variable_name="delay_lysis",
         display_name="Delay lysis",
-        description="Delay protocol for lysis step (min)",
+        description="Delay protocol for lysis step",
         default=3,
         minimum=1,
-        maximum=5
+        maximum=5,
+        unit='min'
     )
     parameters.add_int(
         variable_name="delay_cbeads_incubate",
         display_name="Delay C-Beads incubate",
-        description="Delay protocol for incubation of clearing beads (min)",
+        description="Delay protocol for incubation of clearing beads",
         default=1,
         minimum=1,
-        maximum=10
+        maximum=10,
+        unit='min'
     )
     parameters.add_int(
         variable_name="delay_separate",
         display_name="Delay M-Beads separate",
-        description="Delay protocol for separation of magnetic beads (min)",
+        description="Delay protocol for separation of magnetic beads",
         default=5,
         minimum=1,
-        maximum=10
+        maximum=10,
+        unit='min'
     )
     parameters.add_int(
         variable_name="delay_resuspend",
         display_name="Delay M-Beads resuspend",
-        description="Delay protocol for resuspension of magnetic beads (min)",
+        description="Delay protocol for resuspension of magnetic beads",
         default=5,
         minimum=1,
-        maximum=10
+        maximum=10,
+        unit='min'
     )
     parameters.add_int(
         variable_name="delay_dry",
         display_name="Delay M-Beads dry",
-        description="Delay protocol for drying of magnetic beads (min)",
+        description="Delay protocol for drying of magnetic beads",
         default=15,
         minimum=1,
-        maximum=30
+        maximum=30,
+        unit='min'
     )
 
 def delay(protocol, delay_min, debug):
@@ -254,7 +259,7 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # Step 5-6: Magnetic separation and transfer supernatant to new well
     mag_module.engage(height_from_base=protocol.params.engage_height)
-    delay(protocol, protocol.params.delay_engage, protocol.params.debug)
+    delay(protocol, protocol.params.delay_separate, protocol.params.debug)
     for i in range(protocol.params.sample_count):
         p1000_single.transfer(365, mag_plate_96well[samples_infos[i][4]], mag_plate_96well[samples_infos[i][5]])
     mag_module.disengage()
@@ -267,7 +272,7 @@ def run(protocol: protocol_api.ProtocolContext):
     
     # Step 8: Magnetic separation and remove supernatant
     mag_module.engage(height_from_base=protocol.params.engage_height)
-    delay(protocol, protocol.params.delay_engage, protocol.params.debug)
+    delay(protocol, protocol.params.delay_separate, protocol.params.debug)
     for i in range(protocol.params.sample_count):
         p1000_single.pick_up_tip()
         p1000_single.aspirate(775, mag_plate_96well[samples_infos[i][5]])  # waste
@@ -286,7 +291,7 @@ def run(protocol: protocol_api.ProtocolContext):
             
         delay(protocol, protocol.params.delay_resuspend, protocol.params.debug)
         mag_module.engage(height_from_base=protocol.params.engage_height)
-        delay(protocol, protocol.params.delay_engage, protocol.params.debug)
+        delay(protocol, protocol.params.delay_separate, protocol.params.debug)
         for i in range(protocol.params.sample_count):
             p1000_single.pick_up_tip()
             p1000_single.aspirate(900, mag_plate_96well[samples_infos[i][5]])  # waste
@@ -303,7 +308,7 @@ def run(protocol: protocol_api.ProtocolContext):
 
     # Step 18: Magnetic separation and transfer supernatant to final eppi for retrieval
     mag_module.engage(height_from_base=protocol.params.engage_height)
-    delay(protocol, protocol.params.delay_engage, protocol.params.debug)
+    delay(protocol, protocol.params.delay_separate, protocol.params.debug)
     for i in range(protocol.params.sample_count):
         p300_single.transfer(100, mag_plate_96well[samples_infos[i][5]], eppiracks_samples[samples_infos[i][2]][samples_infos[i][3]])
     mag_module.disengage()
