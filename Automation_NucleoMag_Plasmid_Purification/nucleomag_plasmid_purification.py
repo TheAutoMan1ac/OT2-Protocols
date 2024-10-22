@@ -181,16 +181,6 @@ def run(protocol: protocol_api.ProtocolContext):
     tuberack_reagents[reagent_c_beads_slot].load_liquid(liquid=c_beads_liquid, volume=35 * protocol.params.sample_count * 1.1)
     tuberack_reagents[reagent_m_beads_slot].load_liquid(liquid=m_beads_liquid, volume=20 * protocol.params.sample_count * 1.1)
     
-    # labware samples
-    eppiracks_count = math.ceil(protocol.params.sample_count / 12)
-    
-    eppiracks_samples = [protocol.load_labware(load_name='opentrons_24_tuberack_eppendorf_1.5ml_safelock_snapcap', location=slot) for slot in eppiracks_samples_slots[:eppiracks_count]]
-    
-    # modules
-    # magdeck = Magnetic Module GEN1
-    mag_module = protocol.load_module('magdeck', magnetic_module_slot)
-    mag_plate_96well = mag_module.load_labware('nest_96_wellplate_2ml_deep')
-    
     # samples
     # unpurified_sample_eppi_rack_slot, unpurified_sample_slot,
     # purified_sample_eppi_rack_slot, purified_sample_slot,
@@ -222,10 +212,27 @@ def run(protocol: protocol_api.ProtocolContext):
         23: [1, 'B6', 1, 'D6', 'B12', 'D12']
     }
 
+    # labware samples
+    eppiracks_count = math.ceil(protocol.params.sample_count / 12)
+    eppiracks_samples = [protocol.load_labware(load_name='opentrons_24_tuberack_eppendorf_1.5ml_safelock_snapcap', location=slot) for slot in eppiracks_samples_slots[:eppiracks_count]]
+    
+    for i in range(protocol.params.sample_count):
+        bac_culture_sample_liquid = protocol.define_liquid(name="Bac. Pellet S" + str(i), description="Bacterial Culture Pellet S" + str(i), display_color="#00FF00")
+        purified_plasmid_liquid = protocol.define_liquid(name="Purified Plasmid S" + str(i), description="Purified Plasmid S" + str(i), display_color="#0000FF")
+        
+        eppiracks_samples[samples_infos[i][0]][samples_infos[i][1]].load_liquid(liquid=bac_culture_sample_liquid, volume=20)
+        eppiracks_samples[samples_infos[i][2]][samples_infos[i][3]].load_liquid(liquid=purified_plasmid_liquid, volume=0)
+
+    # modules
+    # magdeck = Magnetic Module GEN1
+    mag_module = protocol.load_module('magdeck', magnetic_module_slot)
+    mag_plate_96well = mag_module.load_labware('nest_96_wellplate_2ml_deep')
+    
+    #PROTOCOL START
     # Step 1: Add 90uL of reagent A1 to bacterial pellet, resuspend and transfer to magdeck 96well plate
     for i in range(protocol.params.sample_count):
-        p300_single.transfer(90, tuberack_reagents[reagent_A1_slot], eppiracks_samples[samples_infos[i][0]][samples_infos[i][1]], mix_after=(protocol.params.mix_times_thorough, 50))
-        p300_single.transfer(90, eppiracks_samples[samples_infos[i][0]][samples_infos[i][1]], mag_plate_96well[samples_infos[i][4]])
+        p300_single.transfer(90, tuberack_reagents[reagent_A1_slot].bottom(3), eppiracks_samples[samples_infos[i][0]][samples_infos[i][1]].bottom(3), mix_after=(protocol.params.mix_times_thorough, 50))
+        p300_single.transfer(90, eppiracks_samples[samples_infos[i][0]][samples_infos[i][1]].bottom(3), mag_plate_96well[samples_infos[i][4]].bottom(3))
 
     task_queue = []
     start_time = time.time()
@@ -234,10 +241,10 @@ def run(protocol: protocol_api.ProtocolContext):
             task = heapq.heappop(task_queue)
             if task.action == 'add_neutralization':
                 # Step 3: Add 120uL neutralization buffer and mix
-                p300_single.transfer(120, tuberack_reagents[reagent_S3_slot], mag_plate_96well[samples_infos[task.sample_id][4]], mix_after=(protocol.params.mix_times_default, 100))
+                p300_single.transfer(120, tuberack_reagents[reagent_S3_slot].bottom(3), mag_plate_96well[samples_infos[task.sample_id][4]].bottom(3), mix_after=(protocol.params.mix_times_default, 100))
         
         # Step 2: Add 120uL lysis buffer and mix, schedule neutralization step at delay_lysis time in the future (this is time critical)
-        p300_single.transfer(120, tuberack_reagents[reagent_A2_slot], mag_plate_96well[samples_infos[i][4]], mix_after=(protocol.params.mix_times_default, 100))
+        p300_single.transfer(120, tuberack_reagents[reagent_A2_slot].bottom(3), mag_plate_96well[samples_infos[i][4]].bottom(3), mix_after=(protocol.params.mix_times_default, 100))
         neutralization_time = time.time() - start_time + protocol.params.delay_lysis*60 # Schedule after delay_lysis minutes 
         heapq.heappush(task_queue, Task(neutralization_time, 'add_neutralization', i))
 
@@ -249,11 +256,11 @@ def run(protocol: protocol_api.ProtocolContext):
         task = heapq.heappop(task_queue)
         if task.action == 'add_neutralization':
             # Step 3: Add 120uL neutralization buffer and mix
-            p300_single.transfer(120, tuberack_reagents[reagent_S3_slot], mag_plate_96well[samples_infos[task.sample_id][4]], mix_after=(protocol.params.mix_times_default, 150))
+            p300_single.transfer(120, tuberack_reagents[reagent_S3_slot].bottom(3), mag_plate_96well[samples_infos[task.sample_id][4]].bottom(3), mix_after=(protocol.params.mix_times_default, 150))
 
     # Step 4: Add 35uL NucleoMag Clearing Beads and mix
     for i in range(protocol.params.sample_count):
-        p300_single.transfer(35, tuberack_reagents[reagent_c_beads_slot], mag_plate_96well[samples_infos[i][4]], mix_before=(protocol.params.mix_times_default, 20), mix_after=(protocol.params.mix_times_thorough, 200))
+        p300_single.transfer(35, tuberack_reagents[reagent_c_beads_slot].bottom(3), mag_plate_96well[samples_infos[i][4]].bottom(3), mix_before=(protocol.params.mix_times_default, 20), mix_after=(protocol.params.mix_times_thorough, 200))
     # not specified in protocol but feels right
     delay(protocol, protocol.params.delay_cbeads_incubate, protocol.params.debug)
 
@@ -261,13 +268,13 @@ def run(protocol: protocol_api.ProtocolContext):
     mag_module.engage(height_from_base=protocol.params.engage_height)
     delay(protocol, protocol.params.delay_separate, protocol.params.debug)
     for i in range(protocol.params.sample_count):
-        p1000_single.transfer(365, mag_plate_96well[samples_infos[i][4]], mag_plate_96well[samples_infos[i][5]])
+        p1000_single.transfer(365, mag_plate_96well[samples_infos[i][4]].bottom(3), mag_plate_96well[samples_infos[i][5]].bottom(3))
     mag_module.disengage()
 
     # Step 7: Add 20uL of NucleoMag M-Beads and 390uL of reagent PAB and mix
     for i in range(protocol.params.sample_count):
-        p300_single.transfer(20, tuberack_reagents[reagent_m_beads_slot], mag_plate_96well[samples_infos[i][5]], mix_before=(protocol.params.mix_times_default, 10))
-        p1000_single.transfer(390, tuberack_reagents[reagent_PAB_slot], mag_plate_96well[samples_infos[i][5]], mix_after=(protocol.params.mix_times_thorough, 400))
+        p300_single.transfer(20, tuberack_reagents[reagent_m_beads_slot].bottom(3), mag_plate_96well[samples_infos[i][5]].bottom(3), mix_before=(protocol.params.mix_times_default, 10))
+        p1000_single.transfer(390, tuberack_reagents[reagent_PAB_slot].bottom(3), mag_plate_96well[samples_infos[i][5]].bottom(3), mix_after=(protocol.params.mix_times_thorough, 400))
     delay(protocol, protocol.params.delay_resuspend, protocol.params.debug)
     
     # Step 8: Magnetic separation and remove supernatant
@@ -275,7 +282,7 @@ def run(protocol: protocol_api.ProtocolContext):
     delay(protocol, protocol.params.delay_separate, protocol.params.debug)
     for i in range(protocol.params.sample_count):
         p1000_single.pick_up_tip()
-        p1000_single.aspirate(775, mag_plate_96well[samples_infos[i][5]])  # waste
+        p1000_single.aspirate(775, mag_plate_96well[samples_infos[i][5]].bottom(3))  # waste
         p1000_single.drop_tip()
     mag_module.disengage()
 
@@ -284,17 +291,17 @@ def run(protocol: protocol_api.ProtocolContext):
     for j in range(4):
         if j == 0 or j == 1:
             for i in range(protocol.params.sample_count):
-                p1000_single.transfer(900, tuberack_reagents[reagent_ERB_slot], mag_plate_96well[samples_infos[i][5]], mix_after=(protocol.params.mix_times_thorough, 500))
+                p1000_single.transfer(900, tuberack_reagents[reagent_ERB_slot].bottom(3), mag_plate_96well[samples_infos[i][5]].bottom(3), mix_after=(protocol.params.mix_times_thorough, 500))
         elif j == 2 or j == 3:
             for i in range(protocol.params.sample_count):
-                p1000_single.transfer(900, tuberack_reagents[reagent_AQ_slot], mag_plate_96well[samples_infos[i][5]], mix_after=(protocol.params.mix_times_thorough, 500))
+                p1000_single.transfer(900, tuberack_reagents[reagent_AQ_slot].bottom(3), mag_plate_96well[samples_infos[i][5]].bottom(3), mix_after=(protocol.params.mix_times_thorough, 500))
             
         delay(protocol, protocol.params.delay_resuspend, protocol.params.debug)
         mag_module.engage(height_from_base=protocol.params.engage_height)
         delay(protocol, protocol.params.delay_separate, protocol.params.debug)
         for i in range(protocol.params.sample_count):
             p1000_single.pick_up_tip()
-            p1000_single.aspirate(900, mag_plate_96well[samples_infos[i][5]])  # waste
+            p1000_single.aspirate(900, mag_plate_96well[samples_infos[i][5]].bottom(3))  # waste
             p1000_single.drop_tip()
         mag_module.disengage()
 
@@ -304,11 +311,11 @@ def run(protocol: protocol_api.ProtocolContext):
     
     # Step 17: Add 100uL of reagent AE, mix, and resuspend
     for i in range(protocol.params.sample_count):
-        p300_single.transfer(100, tuberack_reagents[reagent_AE_slot], mag_plate_96well[samples_infos[i][5]], mix_after=(protocol.params.mix_times_thorough, 50))
+        p300_single.transfer(100, tuberack_reagents[reagent_AE_slot].bottom(3), mag_plate_96well[samples_infos[i][5]].bottom(3), mix_after=(protocol.params.mix_times_thorough, 50))
 
     # Step 18: Magnetic separation and transfer supernatant to final eppi for retrieval
     mag_module.engage(height_from_base=protocol.params.engage_height)
     delay(protocol, protocol.params.delay_separate, protocol.params.debug)
     for i in range(protocol.params.sample_count):
-        p300_single.transfer(100, mag_plate_96well[samples_infos[i][5]], eppiracks_samples[samples_infos[i][2]][samples_infos[i][3]])
+        p300_single.transfer(100, mag_plate_96well[samples_infos[i][5]].bottom(3), eppiracks_samples[samples_infos[i][2]][samples_infos[i][3]].bottom(3))
     mag_module.disengage()
