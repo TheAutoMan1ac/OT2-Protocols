@@ -97,7 +97,7 @@ def add_parameters(parameters: protocol_api.Parameters):
         variable_name="delay_separate_default",
         display_name="Delay separate default",
         description="Delay protocol for separation of C/M-beads.",
-        default=1,
+        default=2,
         minimum=1,
         maximum=5,
         unit='min'
@@ -270,11 +270,18 @@ def run(protocol: protocol_api.ProtocolContext):
     #PROTOCOL START
     # Step 1: Add 90uL of reagent A1 to bacterial pellet, resuspend and transfer to magdeck 96well plate
     for i in range(protocol.params.sample_count):
+        p300_single.pick_up_tip()
         p300_single.transfer(90, tuberack_reagents[reagent_A1_slot].bottom(BOTTOM_DIST_DEFAULT_MM), eppiracks_samples[samples_infos[i][0]][samples_infos[i][1]].bottom(BOTTOM_DIST_DEFAULT_MM),
-                             mix_after=(protocol.params.mix_times_resuspend_culture, 50), blow_out=True, blowout_location='destination_well')
+                             mix_after=(protocol.params.mix_times_resuspend_culture, 50), new_tip='never')
+        p300_single.blow_out(eppiracks_samples[samples_infos[i][0]][samples_infos[i][1]].top())
+        p300_single.drop_tip()
+        
         #transfer more volume than 90uL to account for extra volume of pellet
+        p300_single.pick_up_tip()
         p300_single.transfer(110, eppiracks_samples[samples_infos[i][0]][samples_infos[i][1]].bottom(BOTTOM_DIST_DEFAULT_MM), mag_plate_96well[samples_infos[i][4]].bottom(BOTTOM_DIST_DEFAULT_MM),
-                             blow_out=True, blowout_location='destination_well')
+                             new_tip='never')
+        p300_single.blow_out(mag_plate_96well[samples_infos[i][4]].top())
+        p300_single.drop_tip()
 
     task_queue = []
     start_time = time.time()
@@ -283,12 +290,18 @@ def run(protocol: protocol_api.ProtocolContext):
             task = heapq.heappop(task_queue)
             if task.action == 'add_neutralization':
                 # Step 3: Add 120uL neutralization buffer and mix
+                p300_single.pick_up_tip()
                 p300_single.transfer(120, tuberack_reagents[reagent_S3_slot].bottom(BOTTOM_DIST_DEFAULT_MM), mag_plate_96well[samples_infos[task.sample_id][4]].bottom(BOTTOM_DIST_DEFAULT_MM),
-                                     mix_after=(protocol.params.mix_times_default, 150), blow_out=True, blowout_location='destination_well')
+                                     mix_after=(protocol.params.mix_times_default, 150), new_tip='never')
+                p300_single.blow_out(mag_plate_96well[samples_infos[task.sample_id][4]].top())
+                p300_single.drop_tip()
         
         # Step 2: Add 120uL lysis buffer and mix, schedule neutralization step at delay_lysis time in the future (this is time critical)
+        p300_single.pick_up_tip()
         p300_single.transfer(120, tuberack_reagents[reagent_A2_slot].bottom(BOTTOM_DIST_DEFAULT_MM), mag_plate_96well[samples_infos[i][4]].bottom(BOTTOM_DIST_DEFAULT_MM),
-                             mix_after=(protocol.params.mix_times_default, 100), blow_out=True, blowout_location='destination_well')
+                             mix_after=(protocol.params.mix_times_default, 100), new_tip='never')
+        p300_single.blow_out(mag_plate_96well[samples_infos[i][4]].top())
+        p300_single.drop_tip()
         neutralization_time = time.time() - start_time + protocol.params.delay_lysis*60 # Schedule after delay_lysis minutes 
         heapq.heappush(task_queue, Task(neutralization_time, 'add_neutralization', i))
 
@@ -300,13 +313,19 @@ def run(protocol: protocol_api.ProtocolContext):
         task = heapq.heappop(task_queue)
         if task.action == 'add_neutralization':
             # Step 3: Add 120uL neutralization buffer and mix
+            p300_single.pick_up_tip()
             p300_single.transfer(120, tuberack_reagents[reagent_S3_slot].bottom(BOTTOM_DIST_DEFAULT_MM), mag_plate_96well[samples_infos[task.sample_id][4]].bottom(BOTTOM_DIST_DEFAULT_MM),
-                                 mix_after=(protocol.params.mix_times_default, 150), blow_out=True, blowout_location='destination_well')
+                                 mix_after=(protocol.params.mix_times_default, 150), new_tip='never')
+            p300_single.blow_out(mag_plate_96well[samples_infos[task.sample_id][4]].top())
+            p300_single.drop_tip()
 
     # Step 4: Add 35uL NucleoMag Clearing Beads and mix
     for i in range(protocol.params.sample_count):
+        p300_single.pick_up_tip()
         p300_single.transfer(35, tuberack_reagents[reagent_c_beads_slot].bottom(BOTTOM_DIST_DEFAULT_MM), mag_plate_96well[samples_infos[i][4]].bottom(BOTTOM_DIST_DEFAULT_MM),
-                             mix_before=(protocol.params.mix_times_beads, 20), mix_after=(protocol.params.mix_times_thorough, 200), blow_out=True, blowout_location='destination_well')
+                             mix_before=(protocol.params.mix_times_beads, 20), mix_after=(protocol.params.mix_times_thorough, 200), new_tip='never')
+        p300_single.blow_out(mag_plate_96well[samples_infos[i][4]].top())
+        p300_single.drop_tip()
     # not specified in protocol but feels right
     delay(protocol, protocol.params.delay_cbeads_incubate, protocol.params.debug)
 
@@ -314,15 +333,26 @@ def run(protocol: protocol_api.ProtocolContext):
     mag_module.engage(height_from_base=protocol.params.engage_height)
     delay(protocol, protocol.params.delay_separate_default, protocol.params.debug)
     for i in range(protocol.params.sample_count):
-        p1000_single.transfer(365, mag_plate_96well[samples_infos[i][4]].bottom(BOTTOM_DIST_DEFAULT_MM), mag_plate_96well[samples_infos[i][5]].bottom(BOTTOM_DIST_DEFAULT_MM), blow_out=True, blowout_location='destination_well')
+        p1000_single.pick_up_tip()
+        p1000_single.transfer(365, mag_plate_96well[samples_infos[i][4]].bottom(BOTTOM_DIST_DEFAULT_MM), mag_plate_96well[samples_infos[i][5]].bottom(BOTTOM_DIST_DEFAULT_MM), 
+                              new_tip='never')
+        p1000_single.blow_out(mag_plate_96well[samples_infos[i][5]].top())
+        p1000_single.drop_tip()
     mag_module.disengage()
 
     # Step 7: Add 20uL of NucleoMag M-Beads and 390uL of reagent PAB and mix
     for i in range(protocol.params.sample_count):
+        p300_single.pick_up_tip()
         p300_single.transfer(20, tuberack_reagents[reagent_m_beads_slot].bottom(BOTTOM_DIST_DEFAULT_MM), mag_plate_96well[samples_infos[i][5]].bottom(BOTTOM_DIST_DEFAULT_MM),
-                             mix_before=(protocol.params.mix_times_beads, 10), blow_out=True, blowout_location='destination_well')
+                             mix_before=(protocol.params.mix_times_beads, 10), new_tip='never')
+        p300_single.blow_out(mag_plate_96well[samples_infos[i][5]].top())
+        p300_single.drop_tip()
+        
+        p1000_single.pick_up_tip()
         p1000_single.transfer(390, tuberack_reagents[reagent_PAB_slot].bottom(BOTTOM_DIST_FAR_MM), mag_plate_96well[samples_infos[i][5]].bottom(BOTTOM_DIST_DEFAULT_MM),
-                              mix_before=(protocol.params.mix_times_default, 390), mix_after=(protocol.params.mix_times_thorough, 400), blow_out=True, blowout_location='destination_well')
+                              mix_before=(protocol.params.mix_times_default, 390), mix_after=(protocol.params.mix_times_thorough, 400), new_tip='never')
+        p1000_single.blow_out(mag_plate_96well[samples_infos[i][5]].top())
+        p1000_single.drop_tip()
     delay(protocol, protocol.params.delay_resuspend_thorough, protocol.params.debug)
     
     # Step 8: Magnetic separation and remove supernatant
@@ -339,12 +369,18 @@ def run(protocol: protocol_api.ProtocolContext):
     for j in range(4):
         if j == 0 or j == 1:
             for i in range(protocol.params.sample_count):
+                p1000_single.pick_up_tip()
                 p1000_single.transfer(900, tuberack_reagents[reagent_ERB_slot].bottom(BOTTOM_DIST_FAR_MM), mag_plate_96well[samples_infos[i][5]].bottom(BOTTOM_DIST_DEFAULT_MM),
-                                      mix_after=(protocol.params.mix_times_thorough, 500), blow_out=True, blowout_location='destination_well')
+                                      mix_after=(protocol.params.mix_times_thorough, 500), new_tip='never')
+                p1000_single.blow_out(mag_plate_96well[samples_infos[i][5]].top())
+                p1000_single.drop_tip()
         elif j == 2 or j == 3:
             for i in range(protocol.params.sample_count):
+                p1000_single.pick_up_tip()
                 p1000_single.transfer(900, tuberack_reagents[reagent_AQ_slot].bottom(BOTTOM_DIST_FAR_MM), mag_plate_96well[samples_infos[i][5]].bottom(BOTTOM_DIST_DEFAULT_MM),
-                                      mix_after=(protocol.params.mix_times_thorough, 500), blow_out=True, blowout_location='destination_well')
+                                      mix_after=(protocol.params.mix_times_thorough, 500), new_tip='never')
+                p1000_single.blow_out(mag_plate_96well[samples_infos[i][5]].top())
+                p1000_single.drop_tip()
             
         delay(protocol, protocol.params.delay_resuspend_wash, protocol.params.debug)
         mag_module.engage(height_from_base=protocol.params.engage_height)
@@ -361,13 +397,19 @@ def run(protocol: protocol_api.ProtocolContext):
     
     # Step 17: Add 100uL of reagent AE, mix, and resuspend
     for i in range(protocol.params.sample_count):
+        p300_single.pick_up_tip()
         p300_single.transfer(100, tuberack_reagents[reagent_AE_slot].bottom(BOTTOM_DIST_DEFAULT_MM), mag_plate_96well[samples_infos[i][5]].bottom(BOTTOM_DIST_DEFAULT_MM),
-                             mix_after=(protocol.params.mix_times_thorough, 50), blow_out=True, blowout_location='destination_well')
+                             mix_after=(protocol.params.mix_times_thorough, 50), new_tip='never')
+        p300_single.blow_out(mag_plate_96well[samples_infos[i][5]].top())
+        p300_single.drop_tip()
 
     # Step 18: Magnetic separation and transfer supernatant to final eppi for retrieval
     mag_module.engage(height_from_base=protocol.params.engage_height)
     delay(protocol, protocol.params.delay_separate_final, protocol.params.debug)
     for i in range(protocol.params.sample_count):
+        p300_single.pick_up_tip()
         p300_single.transfer(100, mag_plate_96well[samples_infos[i][5]].bottom(BOTTOM_DIST_DEFAULT_MM), eppiracks_samples[samples_infos[i][2]][samples_infos[i][3]].bottom(BOTTOM_DIST_DEFAULT_MM),
-                             blow_out=True, blowout_location='destination_well')
+                             new_tip='never')
+        p300_single.blow_out(eppiracks_samples[samples_infos[i][2]][samples_infos[i][3]].top())
+        p300_single.drop_tip()
     mag_module.disengage()
